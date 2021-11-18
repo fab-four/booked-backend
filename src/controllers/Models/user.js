@@ -18,7 +18,8 @@ const userSchema = new Schema({
   },
 
   personalDetails: {
-    name: String,
+    firstName: String,
+    lastName: String,
     dateOfBirth: Date,
     sex: {
       type: String,

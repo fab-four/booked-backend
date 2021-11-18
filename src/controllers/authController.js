@@ -26,6 +26,8 @@ const authController = () => {
         });
   };
   const signIn = async (req, res) => {
+    debug(req.body);
+
     const user = await UserModel.findOne({email: req.body.email});
     if (user == null) {
       return sendResponse(res, {success: false, msg: 'No such user'});
@@ -42,7 +44,7 @@ const authController = () => {
   const signUp = async (req, res) => {
     debug(req.body);
     const user = new UserModel({
-      ...req.body.user,
+      ...req.body,
     });
 
     user
