@@ -16,7 +16,7 @@ const userSchema = new Schema({
     type: String,
     required: true,
   },
-
+  isSeller: Boolean,
   personalDetails: {
     firstName: String,
     lastName: String,
