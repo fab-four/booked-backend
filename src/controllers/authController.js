@@ -68,6 +68,17 @@ const authController = () => {
     });
   };
 
+  const updateDetails = async (req, res) => {
+    const user = await UserModel.findOne({email: req.user.email});
+    Object.keys(req.body).forEach((key) => {
+      user[key] = req.body[key];
+    });
+    user.save().then((response) => {
+      sendResponse(res, {success: true, msg: 'Data saved'});
+    }).catch((err) => {
+      sendResponse(res, {success: false, msg: 'Data not saved'});
+    });
+  };
   // const getUsers = async (req, res) => {
   //   // debug(req.body);
   //   if (!req.body.email) {
@@ -96,6 +107,7 @@ const authController = () => {
     signIn,
     signUp,
     getProfile,
+    updateDetails,
     // getUsers,
   };
 };
