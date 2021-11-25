@@ -14,7 +14,7 @@ const authController = () => {
     const payload = {
       email: user.email,
     };
-    user['password'] = '';
+    delete user.password;
     jwt.sign(payload, JWT_SECRET, {expiresIn: 604800},
         (err, token) => {
           sendResponse(res, {
@@ -60,7 +60,7 @@ const authController = () => {
 
   const getProfile = async (req, res) => {
     const user = await UserModel.findOne({email: req.user.email});
-    user['password'] = '';
+    delete user.password;
     sendResponse(res, {
       msg: 'Profile',
       success: true,
@@ -71,7 +71,9 @@ const authController = () => {
   const updateDetails = async (req, res) => {
     const user = await UserModel.findOne({email: req.user.email});
     Object.keys(req.body).forEach((key) => {
-      user[key] = req.body[key];
+      if (key !== '__v') {
+        user[key] = req.body[key];
+      }
     });
     user.save().then((response) => {
       sendResponse(res, {success: true, msg: 'Data saved'});
