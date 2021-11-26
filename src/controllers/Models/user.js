@@ -70,7 +70,7 @@ const userSchema = new Schema({
     bought: [
       {
         bookId: String,
-        sellerId: Number,
+        sellerId: String,
         quantity: Number,
         date: Date,
       },

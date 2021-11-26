@@ -81,6 +81,60 @@ const authController = () => {
       sendResponse(res, {success: false, msg: 'Data not saved'});
     });
   };
+
+  const getSellers = async (req, res) => {
+    const user = await UserModel.findOne({email: req.user.email});
+    if (user.isSeller) {
+      sendResponse(res, {success: false, msg: 'Only buyers are allowed to access this data'});
+      return;
+    }
+    let users = await UserModel.find({isSeller: true});
+    users = users.filter((user) => user.seller.books.some(
+        (book) => (book.bookId === req.body.id) && (book.quantity)),
+    );
+    const sellers = users.map((user) => {
+      return {
+        name: user.personalDetails.firstName + ' ' + user.personalDetails.lastName,
+        email: user.email,
+        price: user.seller.books.filter((book) => (book.bookId === req.body.id))[0].price,
+        quantity: user.seller.books.filter((book) => (book.bookId === req.body.id))[0].quantity,
+      };
+    });
+    debug(sellers);
+    sendResponse(res, {
+      msg: 'Sellers',
+      success: true,
+      data: sellers,
+    });
+  };
+
+  const buy = async (req, res) => {
+    debug(req.body);
+    const user = await UserModel.findOne({email: req.user.email});
+    if (user.isSeller) {
+      sendResponse(res, {success: false, msg: 'Only buyers are allowed to buy items'});
+      return;
+    }
+    const seller = await UserModel.findOne({email: req.body.sellerId});
+    // eslint-disable-next-line guard-for-in
+    for (const book of seller.seller.books) {
+      if (book.bookId === req.body.bookId) {
+        book.quantity -= req.body.quantity;
+        break;
+      }
+    }
+    user.buyer.bought.push({
+      ...req.body,
+      date: new Date(),
+    });
+
+    Promise.all([seller.save(), user.save()]).then((response) => {
+      sendResponse(res, {success: true, msg: 'Data saved'});
+    }).catch((err) => {
+      debug(err);
+      sendResponse(res, {success: false, msg: 'Data not saved'});
+    });
+  };
   // const getUsers = async (req, res) => {
   //   // debug(req.body);
   //   if (!req.body.email) {
@@ -110,7 +164,8 @@ const authController = () => {
     signUp,
     getProfile,
     updateDetails,
-    // getUsers,
+    getSellers,
+    buy,
   };
 };
 
