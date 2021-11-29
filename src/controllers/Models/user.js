@@ -49,6 +49,14 @@ const userSchema = new Schema({
         quantity: Number,
       },
     ],
+    sold: [{
+      bookId: String,
+      price: Number,
+      quantity: Number,
+      date: Date,
+      buyerId: String,
+    },
+    ],
   },
 
   buyer: {
