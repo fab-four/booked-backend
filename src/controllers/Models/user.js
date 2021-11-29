@@ -60,6 +60,11 @@ const userSchema = new Schema({
   },
 
   buyer: {
+    cart: [
+      {
+        type: String,
+      },
+    ],
     favourites: [
       {
         type: String,
