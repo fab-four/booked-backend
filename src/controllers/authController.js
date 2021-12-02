@@ -1,6 +1,8 @@
 const UserModel = require('./Models/user');
 const jwt = require('jsonwebtoken');
 const debug = require('debug')('app:authController');
+const stripe = require('stripe')(process.env.STRIPE_PRIVATE_KEY);
+const {_} = require('lodash');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -9,8 +11,8 @@ const authController = () => {
     res.status(code).json(data);
   };
 
-  const createTokenAndSendResponse = async (req, res, user) => {
-    debug(user);
+  const createTokenAndSendResponse = async (req, res, user, msg) => {
+    // debug(user);
     const payload = {
       email: user.email,
     };
@@ -21,19 +23,19 @@ const authController = () => {
             success: true,
             token: `Bearer ${token}`,
             user,
-            msg: 'You are logged in',
+            msg: msg,
           });
         });
   };
   const signIn = async (req, res) => {
-    debug(req.body);
+    // debug(req.body);
 
     const user = await UserModel.findOne({email: req.body.email});
     if (user == null) {
       return sendResponse(res, {success: false, msg: 'No such user'});
     }
     if (await user.validatePassword(req.body.password)) {
-      createTokenAndSendResponse(req, res, user);
+      createTokenAndSendResponse(req, res, user, 'Signed in');
     } else {
       sendResponse(res, {
         msg: 'Incorrect password',
@@ -42,7 +44,7 @@ const authController = () => {
     }
   };
   const signUp = async (req, res) => {
-    debug(req.body);
+    // debug(req.body);
     const user = new UserModel({
       ...req.body,
     });
@@ -50,11 +52,11 @@ const authController = () => {
     user
         .save()
         .then((result) => {
-          createTokenAndSendResponse(req, res, user);
+          createTokenAndSendResponse(req, res, user, 'Signed up');
         })
         .catch((err) => {
           debug(err);
-          sendResponse(res, {success: false, msg: 'User creation failed'});
+          sendResponse(res, {success: false, msg: 'Sign up failed'});
         });
   };
 
@@ -76,9 +78,9 @@ const authController = () => {
       }
     });
     user.save().then((response) => {
-      sendResponse(res, {success: true, msg: 'Data saved'});
+      sendResponse(res, {success: true, msg: 'Details updated'});
     }).catch((err) => {
-      sendResponse(res, {success: false, msg: 'Data not saved'});
+      sendResponse(res, {success: false, msg: 'Failed to update details'});
     });
   };
 
@@ -100,7 +102,6 @@ const authController = () => {
         quantity: user.seller.books.filter((book) => (book.bookId === req.body.id))[0].quantity,
       };
     });
-    debug(sellers);
     sendResponse(res, {
       msg: 'Sellers',
       success: true,
@@ -109,30 +110,64 @@ const authController = () => {
   };
 
   const buy = async (req, res) => {
-    debug(req.body);
+    // debug(req.body);
     const user = await UserModel.findOne({email: req.user.email});
     if (user.isSeller) {
       sendResponse(res, {success: false, msg: 'Only buyers are allowed to buy items'});
       return;
     }
     const seller = await UserModel.findOne({email: req.body.sellerId});
-    // eslint-disable-next-line guard-for-in
+    const date = new Date();
+    let price;
     for (const book of seller.seller.books) {
       if (book.bookId === req.body.bookId) {
         book.quantity -= req.body.quantity;
+        price = book.price;
         break;
       }
     }
+    const session = await stripe.checkout.sessions.create({
+      customer_email: req.user.email,
+      mode: 'payment',
+      line_items: [
+        {
+          price_data: {
+            currency: 'inr',
+            product_data: {
+              name: req.body.bookTitle,
+            },
+            unit_amount: price * 100,
+          },
+          quantity: req.body.quantity,
+        },
+      ],
+      success_url: req.get('origin') + `/book/${req.body.bookId}`,
+      cancel_url: req.get('origin') + `/book/${req.body.bookId}`,
+    });
+    const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent);
+
     user.buyer.bought.push({
-      ...req.body,
-      date: new Date(),
+      ..._.pick(req.body, ['sellerId', 'quantity', 'bookId']),
+      date: date,
+    });
+
+    seller.seller.sold.push({
+      ..._.pick(req.body, ['quantity', 'bookId']),
+      price: price,
+      date: date,
+      buyerId: user.email,
     });
 
     Promise.all([seller.save(), user.save()]).then((response) => {
-      sendResponse(res, {success: true, msg: 'Data saved'});
+      sendResponse(res, {
+        success: true,
+        msg: 'Item bought successfully',
+        url: session.url,
+        secret: paymentIntent.client_secret,
+      });
     }).catch((err) => {
       debug(err);
-      sendResponse(res, {success: false, msg: 'Data not saved'});
+      sendResponse(res, {success: false, msg: 'Failed to buy item'});
     });
   };
   // const getUsers = async (req, res) => {

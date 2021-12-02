@@ -49,22 +49,18 @@ const userSchema = new Schema({
         quantity: Number,
       },
     ],
-    sold: [{
-      bookId: String,
-      price: Number,
-      quantity: Number,
-      date: Date,
-      buyerId: String,
-    },
+    sold: [
+      {
+        bookId: String,
+        price: Number,
+        quantity: Number,
+        date: Date,
+        buyerId: String,
+      },
     ],
   },
 
   buyer: {
-    cart: [
-      {
-        type: String,
-      },
-    ],
     favourites: [
       {
         type: String,
